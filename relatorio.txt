@@ -1,0 +1,43 @@
+Relatório - Jogo Concorrente em Go
+
+Objetivo:
+Implementar novos elementos autônomos concorrentes em um jogo de terminal em Go, utilizando goroutines e canais para comunicação e sincronização.
+
+Elementos Implementados:
+1. Inimigo (☠)
+   - Se movimenta aleatoriamente pelo mapa a cada 1 segundo.
+   - Implementado como goroutine própria.
+   - Usa o canal "acoes" para atualizar o estado do jogo de forma segura.
+
+2. Tesouro ($)
+   - Surge em posição aleatória do mapa a cada 10 segundos.
+   - Permanece por até 5 segundos, sendo removido automaticamente se não for coletado.
+   - Utiliza "select" com timeout (time.After) para controlar o desaparecimento.
+
+3. Portal (🌀)
+   - Alterna entre aberto e fechado a cada 3 segundos.
+   - Representado com cor diferente para indicar o estado.
+   - Escuta múltiplos canais: tempo (abre/fecha sozinho) e canal "eventos" (mensagens externas, como forçar abrir/fechar).
+
+4. Armadilha (^)
+   - Alterna entre ativa e inativa a cada 4 segundos.
+   - Quando ativa e o jogador pisa nela, exibe mensagem de dano ("Você pisou em uma armadilha!").
+   - Também implementada como goroutine.
+
+Comunicação e Exclusão Mútua:
+- Todas as alterações no jogo são feitas através do canal central "acoes".
+- Cada elemento envia funções anônimas que recebem um ponteiro para o estado do jogo.
+- Apenas a função principal consome o canal e aplica as alterações no mapa.
+- Isso garante exclusão mútua sem uso de mutexes, apenas canais.
+
+Critérios Atendidos:
+- O programa funciona sem erros ou travamentos.
+- Foram implementados quatro elementos concorrentes com comportamentos distintos.
+- Uso de canais para comunicação e sincronização (acoes, eventosPortal).
+- O Portal escuta múltiplos canais (tempo + eventos).
+- O Tesouro utiliza timeout com time.After.
+- Exclusão mútua garantida pelo canal central.
+- Relatório descreve claramente os elementos criados e os mecanismos de comunicação.
+
+Conclusão:
+O trabalho demonstra o uso prático de goroutines e canais em Go para implementar concorrência em um jogo. Os elementos autônomos possuem comportamentos visíveis e independentes, e a sincronização é garantida de forma simples e eficiente.

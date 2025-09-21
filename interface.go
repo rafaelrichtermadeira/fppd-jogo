@@ -1,7 +1,5 @@
 // interface.go - Interface gráfica do jogo usando termbox
-// O código abaixo implementa a interface gráfica do jogo usando a biblioteca termbox-go.
-// A biblioteca termbox-go é uma biblioteca de interface de terminal que permite desenhar
-// elementos na tela, capturar eventos do teclado e gerenciar a aparência do terminal.
+// Implementa a interface gráfica do jogo com a biblioteca termbox-go.
 
 package main
 
@@ -9,24 +7,24 @@ import (
 	"github.com/nsf/termbox-go"
 )
 
-// Define um tipo Cor para encapsuladar as cores do termbox
+// Define um tipo Cor para encapsular as cores do termbox
 type Cor = termbox.Attribute
 
-// Definições de cores utilizadas no jogo
+// Definições de cores utilizadas no jogo (apenas cores válidas em termbox)
 const (
-	CorPadrao     Cor = termbox.ColorDefault
-	CorCinzaEscuro    = termbox.ColorDarkGray
-	CorVermelho       = termbox.ColorRed
-	CorVerde          = termbox.ColorGreen
-	CorParede         = termbox.ColorBlack | termbox.AttrBold | termbox.AttrDim
-	CorFundoParede    = termbox.ColorDarkGray
-	CorTexto          = termbox.ColorDarkGray
+	CorPadrao   Cor = termbox.ColorDefault
+	CorCinza    Cor = termbox.ColorWhite    // substituto para "cinza"
+	CorVermelho Cor = termbox.ColorRed
+	CorVerde    Cor = termbox.ColorGreen
+	CorParede   Cor = termbox.ColorBlue     // parede azul
+	CorFundo    Cor = termbox.ColorBlack
+	CorTexto    Cor = termbox.ColorYellow
 )
 
-// EventoTeclado representa uma ação detectada do teclado (como mover, sair ou interagir)
+// EventoTeclado representa uma ação detectada do teclado
 type EventoTeclado struct {
 	Tipo  string // "sair", "interagir", "mover"
-	Tecla rune   // Tecla pressionada, usada no caso de movimento
+	Tecla rune   // tecla pressionada, usada no caso de movimento
 }
 
 // Inicializa a interface gráfica usando termbox
@@ -50,10 +48,13 @@ func interfaceLerEventoTeclado() EventoTeclado {
 	if ev.Key == termbox.KeyEsc {
 		return EventoTeclado{Tipo: "sair"}
 	}
-	if ev.Ch == 'e' {
+	if ev.Ch == 'e' || ev.Ch == 'E' {
 		return EventoTeclado{Tipo: "interagir"}
 	}
-	return EventoTeclado{Tipo: "mover", Tecla: ev.Ch}
+	if ev.Ch == 'w' || ev.Ch == 'a' || ev.Ch == 's' || ev.Ch == 'd' {
+		return EventoTeclado{Tipo: "mover", Tecla: ev.Ch}
+	}
+	return EventoTeclado{}
 }
 
 // Renderiza todo o estado atual do jogo na tela
@@ -73,7 +74,7 @@ func interfaceDesenharJogo(jogo *Jogo) {
 	// Desenha a barra de status
 	interfaceDesenharBarraDeStatus(jogo)
 
-	// Força a atualização do terminal
+	// Atualiza a tela
 	interfaceAtualizarTela()
 }
 
@@ -82,7 +83,7 @@ func interfaceLimparTela() {
 	termbox.Clear(CorPadrao, CorPadrao)
 }
 
-// Força a atualização da tela do terminal com os dados desenhados
+// Força a atualização da tela
 func interfaceAtualizarTela() {
 	termbox.Flush()
 }
@@ -100,9 +101,8 @@ func interfaceDesenharBarraDeStatus(jogo *Jogo) {
 	}
 
 	// Instruções fixas
-	msg := "Use WASD para mover e E para interagir. ESC para sair."
+	msg := "Use WASD para mover, E para interagir, ESC para sair."
 	for i, c := range msg {
 		termbox.SetCell(i, len(jogo.Mapa)+3, c, CorTexto, CorPadrao)
 	}
 }
-
