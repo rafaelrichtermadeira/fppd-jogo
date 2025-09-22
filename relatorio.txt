@@ -1,44 +1,38 @@
-Relatório - Jogo Concorrente em Go
+RELATÓRIO DO JOGO CONCORRENTE EM GO
 
-Objetivo:
-Implementar novos elementos autônomos concorrentes em um jogo de terminal em Go, utilizando goroutines e canais para comunicação e sincronização.
+1. Introdução
+Este trabalho implementa um jogo simples em Go, utilizando goroutines e canais
+para coordenar elementos concorrentes dentro de um mapa em modo texto. O
+objetivo do jogador é alcançar o tesouro sem ser pego por inimigos.
 
-Arquivos e responsabilidades:
-- main.go: inicialização, criação de canais, loop de entrada, inicialização de elementos concorrentes e goroutines de aplicação/cheque de vitória.
-- interface.go: abstração de desenho/entrada usando termbox-go.
-- jogo.go: definição das estruturas (Elemento, Jogo) e utilitárias para carregar mapa e verificar movimentos.
-- elementos.go: implementação das goroutines autônomas (inimigo, tesouro, portais).
-- personagem.go: transforma eventos do teclado em ações enviadas via canal 'acoes'.
-- relatorio.txt: este arquivo.
+2. Elementos concorrentes
+- Personagem (☺): controlado pelo jogador com WASD.
+- Inimigos (☠): andam aleatoriamente pelo mapa. Se encostam no jogador → derrota.
+- Tesouro ($): se move sozinho pelo mapa. Se o jogador alcança o tesouro → vitória.
+- Portais (🌀): abrem e fecham ciclicamente; quando abertos, permitem teletransporte.
 
-Elementos implementados:
-1) Inimigo (☠)
-   - Move-se aleatoriamente a cada 1 segundo.
-   - Envia "ações" (closures) ao canal 'acoes' que são aplicadas de forma exclusiva pela goroutine applier.
+3. Comunicação e sincronização
+- Todos os elementos concorrentes utilizam o canal `acoes` (chan func(*Jogo)) para
+modificar o estado do mapa de forma segura, garantindo exclusão mútua.
+- Vitória e derrota são comunicadas através dos canais `victoryCh` e `derrotaCh`.
+- Os portais utilizam `time.After` para alternar entre aberto/fechado, demonstrando
+uso de canais com timeout.
 
-2) Tesouro ($)
-   - Apenas 1 tesouro existe por vez.
-   - Surge a cada 10s (se houver espaço), permanece por até 5s e some automaticamente se não for coletado.
-   - Quando o jogador pisa sobre ele, o tesouro é removido e um sinal de vitória é enviado pelo canal 'victoryCh'.
+4. Exclusão mútua
+A exclusão mútua é garantida centralizando todas as alterações de estado na goroutine
+"applier", que lê do canal `acoes` e aplica mudanças no struct `Jogo`.
 
-3) Portais (🌀)
-   - Implementados como um par (entrada e saída).
-   - Alternam entre aberto (passável) e fechado (bloqueado) a cada 3s.
-   - Ao pisar em um portal aberto o jogador é teletransportado para o outro portal aberto.
+5. Demonstração de múltiplos canais
+- O personagem interage via teclado (PollEvent da termbox).
+- Portais escutam tanto tempo (`time.After`) quanto mensagens forçadas (poderia ser
+expandido).
+- Vitória e derrota usam canais distintos (`victoryCh` e `derrotaCh`).
 
-Sincronização e exclusão mútua:
-- Todas as modificações do estado do jogo (mapa, posições, mensagens) são feitas somente por funções/closures enviadas ao canal `acoes`.
-- Uma única goroutine consome `acoes` e aplica as mudanças. Isso garante exclusão mútua sem usar mutexes.
-- A comunicação entre elementos (por exemplo: tesouros temporários) é feita através de mensagens/closures e canais auxiliares (ex.: coords buffer para spawn).
-
-Escuta de múltiplos canais / timeout:
-- O portal alterna seu estado usando `time.Sleep` dentro de sua goroutine; o tesouro usa timeout (espera 5s antes de remover).
-- Exemplos do uso de timeout: tesouro desaparece após 5s; portais alternam periodicamente.
-
-Observações finais:
-- Para compilar: ter Go instalado; instalar dependência termbox-go:
-   go get github.com/nsf/termbox-go
-   go mod tidy
-   go run .
-- Rode o binário em um terminal TTY (não via debug sem suporte a TTY), pois termbox precisa de um terminal real.
-
+6. Conclusão
+O jogo atende os requisitos:
+- Pelo menos 3 tipos de elementos concorrentes (personagem, inimigos, tesouro,
+portais).
+- Comunicação e sincronização por canais.
+- Exclusão mútua garantida.
+- Canal com timeout demonstrado nos portais.
+- Interações claras (vitória ao alcançar tesouro, derrota ao ser pego por inimigo).

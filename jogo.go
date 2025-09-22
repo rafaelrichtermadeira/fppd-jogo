@@ -1,4 +1,4 @@
-// jogo.go - Funções para manipular os elementos do jogo, como carregar o mapa e mover o personagem
+// jogo.go - Estruturas centrais do jogo
 package main
 
 import (
@@ -6,37 +6,38 @@ import (
 	"os"
 )
 
-// Elemento representa qualquer objeto do mapa (parede, personagem, vegetação, etc)
+// Elemento representa qualquer objeto do mapa
 type Elemento struct {
 	simbolo  rune
 	cor      Cor
 	corFundo Cor
-	tangivel bool // Indica se o elemento bloqueia passagem
+	tangivel bool
+	id       int // usado para identificar inimigos
 }
 
-// Jogo contém o estado atual do jogo
+// Estrutura principal do jogo
 type Jogo struct {
-	Mapa           [][]Elemento // grade 2D representando o mapa
-	PosX, PosY     int          // posição atual do personagem
-	UltimoVisitado Elemento     // elemento que estava na posição do personagem antes de mover (não muito usado para jogador separado)
-	StatusMsg      string       // mensagem para a barra de status
+	Mapa      [][]Elemento
+	PosX      int
+	PosY      int
+	StatusMsg string
 }
 
-// Elementos visuais do jogo
+// Elementos do jogo
 var (
-	Personagem = Elemento{'☺', CorCinza, CorPadrao, true}
-	Inimigo    = Elemento{'☠', CorVermelho, CorPadrao, true}
-	Parede     = Elemento{'▤', CorParede, CorPadrao, true}
-	Vegetacao  = Elemento{'♣', CorVerde, CorPadrao, false}
-	Vazio      = Elemento{' ', CorPadrao, CorPadrao, false}
+	Personagem = Elemento{'☺', CorCinza, CorPadrao, true, 0}
+	InimigoEl  = Elemento{'☠', CorVermelho, CorPadrao, false, 0}
+	Parede     = Elemento{'▤', CorParede, CorPadrao, true, 0}
+	Vegetacao  = Elemento{'♣', CorVerde, CorPadrao, false, 0}
+	Vazio      = Elemento{' ', CorPadrao, CorPadrao, false, 0}
+	Tesouro    = Elemento{'$', CorVerde, CorPadrao, false, 0}
 )
 
-// Cria e retorna uma nova instância do jogo
 func jogoNovo() Jogo {
-	return Jogo{UltimoVisitado: Vazio}
+	return Jogo{}
 }
 
-// Lê um arquivo texto linha por linha e constrói o mapa do jogo
+// Carrega mapa de arquivo
 func jogoCarregarMapa(nome string, jogo *Jogo) error {
 	arq, err := os.Open(nome)
 	if err != nil {
@@ -54,17 +55,13 @@ func jogoCarregarMapa(nome string, jogo *Jogo) error {
 			switch ch {
 			case Parede.simbolo:
 				e = Parede
-			case Inimigo.simbolo:
-				e = Inimigo
 			case Vegetacao.simbolo:
 				e = Vegetacao
 			case Personagem.simbolo:
-				// posição inicial do jogador — deixamos a célula vazia no mapa e armazenamos a posição
 				jogo.PosX, jogo.PosY = x, y
 				e = Vazio
-			default:
-				// qualquer caractere desconhecido -> vazio
-				e = Vazio
+			case Tesouro.simbolo:
+				e = Tesouro
 			}
 			linhaElems = append(linhaElems, e)
 		}
@@ -75,32 +72,4 @@ func jogoCarregarMapa(nome string, jogo *Jogo) error {
 		return err
 	}
 	return nil
-}
-
-// Verifica se a posição (x,y) é válida e se não é bloqueada
-func jogoPodeMoverPara(jogo *Jogo, x, y int) bool {
-	if y < 0 || y >= len(jogo.Mapa) {
-		return false
-	}
-	if x < 0 || x >= len(jogo.Mapa[y]) {
-		return false
-	}
-	if jogo.Mapa[y][x].tangivel {
-		return false
-	}
-	return true
-}
-
-// Move um elemento (usado para movimentos de elementos no mapa, ex: inimigo)
-func jogoMoverElemento(jogo *Jogo, x, y, dx, dy int) {
-	nx, ny := x+dx, y+dy
-	// protege índices (não mover para fora)
-	if ny < 0 || ny >= len(jogo.Mapa) || nx < 0 || nx >= len(jogo.Mapa[ny]) {
-		return
-	}
-	elemento := jogo.Mapa[y][x]
-	// restaura
-	jogo.Mapa[y][x] = jogo.UltimoVisitado
-	jogo.UltimoVisitado = jogo.Mapa[ny][nx]
-	jogo.Mapa[ny][nx] = elemento
 }

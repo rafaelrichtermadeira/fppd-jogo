@@ -1,89 +1,72 @@
+// personagem.go - Movimentação e ações do jogador
 package main
 
 import "fmt"
 
-// Canal global de vitória
-var victoryCh chan bool
+func personagemMover(tecla rune, jogo *Jogo) {
+	dx, dy := 0, 0
+	switch tecla {
+	case 'w', 'W':
+		dy = -1
+	case 'a', 'A':
+		dx = -1
+	case 's', 'S':
+		dy = 1
+	case 'd', 'D':
+		dx = 1
+	default:
+		return
+	}
 
-// Enqueue event -> cria uma função que modifica o estado do jogo e envia para acoes.
-// Retorna false se for evento de sair (para o main finalizar).
-func personagemProcessarEvento(ev EventoTeclado, acoes chan func(*Jogo)) bool {
+	nx, ny := jogo.PosX+dx, jogo.PosY+dy
+	if ny < 0 || ny >= len(jogo.Mapa) || nx < 0 || nx >= len(jogo.Mapa[ny]) {
+		return
+	}
+
+	cell := jogo.Mapa[ny][nx]
+
+	if cell.simbolo == InimigoEl.simbolo && derrotaCh != nil {
+		derrotaCh <- true
+		return
+	}
+	if cell.simbolo == Tesouro.simbolo && victoryCh != nil {
+		victoryCh <- true
+		return
+	}
+	if cell.tangivel && cell.simbolo == '🌀' {
+		return
+	}
+	if cell.tangivel {
+		return
+	}
+
+	jogo.PosX, jogo.PosY = nx, ny
+
+	if cell.simbolo == '🌀' && !cell.tangivel {
+		for yy := range jogo.Mapa {
+			for xx := range jogo.Mapa[yy] {
+				if (xx != nx || yy != ny) && jogo.Mapa[yy][xx].simbolo == '🌀' && !jogo.Mapa[yy][xx].tangivel {
+					jogo.PosX, jogo.PosY = xx, yy
+					jogo.StatusMsg = "Teletransportado!"
+					return
+				}
+			}
+		}
+	}
+}
+
+func personagemInteragir(jogo *Jogo) {
+	jogo.StatusMsg = fmt.Sprintf("Interagindo em (%d,%d)", jogo.PosX, jogo.PosY)
+}
+
+func personagemExecutarAcao(ev EventoTeclado, jogo *Jogo) bool {
 	switch ev.Tipo {
 	case "sair":
-		// main trata sair chamando interfaceFinalizar e os.Exit
 		return false
 	case "interagir":
-		acoes <- func(j *Jogo) {
-			j.StatusMsg = fmt.Sprintf("Interagindo em (%d,%d)", j.PosX, j.PosY)
-		}
+		personagemInteragir(jogo)
 	case "mover":
-		var dx, dy int
-		switch ev.Tecla {
-		case 'w', 'W':
-			dy = -1
-		case 'a', 'A':
-			dx = -1
-		case 's', 'S':
-			dy = 1
-		case 'd', 'D':
-			dx = 1
-		default:
-			// tecla inválida
-			return true
-		}
-
-		// envia a ação ao canal (será executada pelo applier)
-		acoes <- func(j *Jogo) {
-			nx := j.PosX + dx
-			ny := j.PosY + dy
-
-			// verifica limites e tangibilidade
-			if ny < 0 || ny >= len(j.Mapa) || nx < 0 || nx >= len(j.Mapa[ny]) {
-				return
-			}
-			elem := j.Mapa[ny][nx]
-			if elem.tangivel {
-				// bloqueado
-				j.StatusMsg = "Caminho bloqueado!"
-				return
-			}
-
-			// movimento válido: atualiza posição do jogador
-			j.PosX = nx
-			j.PosY = ny
-			j.StatusMsg = "" // limpa mensagem
-
-			// se pisou em tesouro
-			if elem.simbolo == Tesouro.simbolo {
-				// remove e sinaliza vitória
-				j.Mapa[ny][nx] = Vazio
-				if victoryCh != nil {
-					// envio não bloqueante: há goroutine esperando no main
-					victoryCh <- true
-				}
-				return
-			}
-
-			// se pisou em portal aberto -> teleporta para o outro portal aberto
-			if elem.simbolo == PortalAberto.simbolo && !elem.tangivel {
-				// busca outro portal aberto
-				for yy := range j.Mapa {
-					for xx := range j.Mapa[yy] {
-						p := j.Mapa[yy][xx]
-						if xx == nx && yy == ny {
-							continue
-						}
-						if p.simbolo == PortalAberto.simbolo && !p.tangivel {
-							// teleportar jogador para (xx,yy)
-							j.PosX = xx
-							j.PosY = yy
-							j.StatusMsg = "Teletransportado!"
-							return
-						}
-					}
-				}
-			}
-		}
+		personagemMover(ev.Tecla, jogo)
 	}
 	return true
 }

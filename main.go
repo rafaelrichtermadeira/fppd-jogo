@@ -1,3 +1,4 @@
+// main.go - Ponto de entrada
 package main
 
 import (
@@ -6,31 +7,29 @@ import (
 	"time"
 )
 
-func main() {
-	// seed aleatório
-	rand.Seed(time.Now().UnixNano())
+var victoryCh chan bool
+var derrotaCh chan bool
 
-	// Inicializa a interface
+func main() {
+	rand.Seed(time.Now().UnixNano())
 	interfaceIniciar()
 	defer interfaceFinalizar()
 
-	// Arquivo do mapa
 	mapaFile := "mapa.txt"
 	if len(os.Args) > 1 {
 		mapaFile = os.Args[1]
 	}
 
-	// Inicializa o jogo
 	jogo := jogoNovo()
 	if err := jogoCarregarMapa(mapaFile, &jogo); err != nil {
 		panic(err)
 	}
 
-	// canais
 	victoryCh = make(chan bool)
-	acoes := make(chan func(*Jogo), 50) // buffer para reduzir chance de bloqueio
+	derrotaCh = make(chan bool)
+	acoes := make(chan func(*Jogo), 100)
 
-	// Goroutine que consome ações e aplica no estado (exclusão mútua via canal)
+	// Aplica mudanças concorrentes
 	go func() {
 		for f := range acoes {
 			if f != nil {
@@ -40,36 +39,34 @@ func main() {
 		}
 	}()
 
-	// Goroutine que aguarda vitória
+	// Vitória
 	go func() {
 		<-victoryCh
-		// finalize e saia
 		interfaceFinalizar()
-		println("🎉 Parabéns, você pegou o tesouro! (vitória)")
+		println("🎉 Você pegou o tesouro! Vitória!")
 		os.Exit(0)
 	}()
 
-	// Inicia elementos concorrentes
-	iniciarInimigo(10, 5, acoes)
-	iniciarTesouro(acoes)
-	iniciarPortais(15, 8, 2, 12, acoes) // entrada em (15,8), saída em (2,12)
+	// Derrota
+	go func() {
+		<-derrotaCh
+		interfaceFinalizar()
+		println("💀 Um inimigo te pegou! Game Over.")
+		os.Exit(0)
+	}()
 
-	// Desenha estado inicial
+	// Elementos concorrentes
+	iniciarInimigos(acoes)               // vários inimigos
+	iniciarTesouroVivo(20, 5, acoes)     // tesouro vivo
+	iniciarPortais(15, 8, 18, 5, acoes)  // portais
+
 	interfaceDesenharJogo(&jogo)
 
-	// Loop principal de entrada: pega eventos e os transforma em ações via canal
 	for {
 		ev := interfaceLerEventoTeclado()
-		if ev.Tipo == "sair" {
-			// finaliza imediatamente
-			interfaceFinalizar()
-			os.Exit(0)
+		if !personagemExecutarAcao(ev, &jogo) {
+			break
 		}
-		cont := personagemProcessarEvento(ev, acoes)
-		if !cont {
-			interfaceFinalizar()
-			os.Exit(0)
-		}
-		// não desenhamos aqui — a goroutine que aplica ações já redesenha
+		interfaceDesenharJogo(&jogo)
 	}
 }
