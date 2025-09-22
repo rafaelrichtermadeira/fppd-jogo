@@ -8,17 +8,17 @@ import (
 
 // Elemento representa qualquer objeto do mapa (parede, personagem, vegetação, etc)
 type Elemento struct {
-	simbolo   rune
-	cor       Cor
-	corFundo  Cor
-	tangivel  bool // Indica se o elemento bloqueia passagem
+	simbolo  rune
+	cor      Cor
+	corFundo Cor
+	tangivel bool // Indica se o elemento bloqueia passagem
 }
 
 // Jogo contém o estado atual do jogo
 type Jogo struct {
 	Mapa           [][]Elemento // grade 2D representando o mapa
 	PosX, PosY     int          // posição atual do personagem
-	UltimoVisitado Elemento     // elemento que estava na posição do personagem antes de mover
+	UltimoVisitado Elemento     // elemento que estava na posição do personagem antes de mover (não muito usado para jogador separado)
 	StatusMsg      string       // mensagem para a barra de status
 }
 
@@ -26,7 +26,6 @@ type Jogo struct {
 var (
 	Personagem = Elemento{'☺', CorCinza, CorPadrao, true}
 	Inimigo    = Elemento{'☠', CorVermelho, CorPadrao, true}
-	Portal     = Elemento{'🌀', CorVerde, CorPadrao, true}
 	Parede     = Elemento{'▤', CorParede, CorPadrao, true}
 	Vegetacao  = Elemento{'♣', CorVerde, CorPadrao, false}
 	Vazio      = Elemento{' ', CorPadrao, CorPadrao, false}
@@ -60,9 +59,12 @@ func jogoCarregarMapa(nome string, jogo *Jogo) error {
 			case Vegetacao.simbolo:
 				e = Vegetacao
 			case Personagem.simbolo:
-				jogo.PosX, jogo.PosY = x, y // posição inicial do jogador
-			case Portal.simbolo:
-				e = Portal
+				// posição inicial do jogador — deixamos a célula vazia no mapa e armazenamos a posição
+				jogo.PosX, jogo.PosY = x, y
+				e = Vazio
+			default:
+				// qualquer caractere desconhecido -> vazio
+				e = Vazio
 			}
 			linhaElems = append(linhaElems, e)
 		}
@@ -75,7 +77,7 @@ func jogoCarregarMapa(nome string, jogo *Jogo) error {
 	return nil
 }
 
-// Verifica se o personagem pode se mover para a posição (x, y)
+// Verifica se a posição (x,y) é válida e se não é bloqueada
 func jogoPodeMoverPara(jogo *Jogo, x, y int) bool {
 	if y < 0 || y >= len(jogo.Mapa) {
 		return false
@@ -89,11 +91,15 @@ func jogoPodeMoverPara(jogo *Jogo, x, y int) bool {
 	return true
 }
 
-// Move um elemento para a nova posição
+// Move um elemento (usado para movimentos de elementos no mapa, ex: inimigo)
 func jogoMoverElemento(jogo *Jogo, x, y, dx, dy int) {
 	nx, ny := x+dx, y+dy
+	// protege índices (não mover para fora)
+	if ny < 0 || ny >= len(jogo.Mapa) || nx < 0 || nx >= len(jogo.Mapa[ny]) {
+		return
+	}
 	elemento := jogo.Mapa[y][x]
-
+	// restaura
 	jogo.Mapa[y][x] = jogo.UltimoVisitado
 	jogo.UltimoVisitado = jogo.Mapa[ny][nx]
 	jogo.Mapa[ny][nx] = elemento

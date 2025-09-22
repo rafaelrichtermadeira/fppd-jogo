@@ -3,41 +3,42 @@ Relatório - Jogo Concorrente em Go
 Objetivo:
 Implementar novos elementos autônomos concorrentes em um jogo de terminal em Go, utilizando goroutines e canais para comunicação e sincronização.
 
-Elementos Implementados:
-1. Inimigo (☠)
-   - Se movimenta aleatoriamente pelo mapa a cada 1 segundo.
-   - Implementado como goroutine própria.
-   - Usa o canal "acoes" para atualizar o estado do jogo de forma segura.
+Arquivos e responsabilidades:
+- main.go: inicialização, criação de canais, loop de entrada, inicialização de elementos concorrentes e goroutines de aplicação/cheque de vitória.
+- interface.go: abstração de desenho/entrada usando termbox-go.
+- jogo.go: definição das estruturas (Elemento, Jogo) e utilitárias para carregar mapa e verificar movimentos.
+- elementos.go: implementação das goroutines autônomas (inimigo, tesouro, portais).
+- personagem.go: transforma eventos do teclado em ações enviadas via canal 'acoes'.
+- relatorio.txt: este arquivo.
 
-2. Tesouro ($)
-   - Surge em posição aleatória do mapa a cada 10 segundos.
-   - Permanece por até 5 segundos, sendo removido automaticamente se não for coletado.
-   - Utiliza "select" com timeout (time.After) para controlar o desaparecimento.
+Elementos implementados:
+1) Inimigo (☠)
+   - Move-se aleatoriamente a cada 1 segundo.
+   - Envia "ações" (closures) ao canal 'acoes' que são aplicadas de forma exclusiva pela goroutine applier.
 
-3. Portal (🌀)
-   - Alterna entre aberto e fechado a cada 3 segundos.
-   - Representado com cor diferente para indicar o estado.
-   - Escuta múltiplos canais: tempo (abre/fecha sozinho) e canal "eventos" (mensagens externas, como forçar abrir/fechar).
+2) Tesouro ($)
+   - Apenas 1 tesouro existe por vez.
+   - Surge a cada 10s (se houver espaço), permanece por até 5s e some automaticamente se não for coletado.
+   - Quando o jogador pisa sobre ele, o tesouro é removido e um sinal de vitória é enviado pelo canal 'victoryCh'.
 
-4. Armadilha (^)
-   - Alterna entre ativa e inativa a cada 4 segundos.
-   - Quando ativa e o jogador pisa nela, exibe mensagem de dano ("Você pisou em uma armadilha!").
-   - Também implementada como goroutine.
+3) Portais (🌀)
+   - Implementados como um par (entrada e saída).
+   - Alternam entre aberto (passável) e fechado (bloqueado) a cada 3s.
+   - Ao pisar em um portal aberto o jogador é teletransportado para o outro portal aberto.
 
-Comunicação e Exclusão Mútua:
-- Todas as alterações no jogo são feitas através do canal central "acoes".
-- Cada elemento envia funções anônimas que recebem um ponteiro para o estado do jogo.
-- Apenas a função principal consome o canal e aplica as alterações no mapa.
-- Isso garante exclusão mútua sem uso de mutexes, apenas canais.
+Sincronização e exclusão mútua:
+- Todas as modificações do estado do jogo (mapa, posições, mensagens) são feitas somente por funções/closures enviadas ao canal `acoes`.
+- Uma única goroutine consome `acoes` e aplica as mudanças. Isso garante exclusão mútua sem usar mutexes.
+- A comunicação entre elementos (por exemplo: tesouros temporários) é feita através de mensagens/closures e canais auxiliares (ex.: coords buffer para spawn).
 
-Critérios Atendidos:
-- O programa funciona sem erros ou travamentos.
-- Foram implementados quatro elementos concorrentes com comportamentos distintos.
-- Uso de canais para comunicação e sincronização (acoes, eventosPortal).
-- O Portal escuta múltiplos canais (tempo + eventos).
-- O Tesouro utiliza timeout com time.After.
-- Exclusão mútua garantida pelo canal central.
-- Relatório descreve claramente os elementos criados e os mecanismos de comunicação.
+Escuta de múltiplos canais / timeout:
+- O portal alterna seu estado usando `time.Sleep` dentro de sua goroutine; o tesouro usa timeout (espera 5s antes de remover).
+- Exemplos do uso de timeout: tesouro desaparece após 5s; portais alternam periodicamente.
 
-Conclusão:
-O trabalho demonstra o uso prático de goroutines e canais em Go para implementar concorrência em um jogo. Os elementos autônomos possuem comportamentos visíveis e independentes, e a sincronização é garantida de forma simples e eficiente.
+Observações finais:
+- Para compilar: ter Go instalado; instalar dependência termbox-go:
+   go get github.com/nsf/termbox-go
+   go mod tidy
+   go run .
+- Rode o binário em um terminal TTY (não via debug sem suporte a TTY), pois termbox precisa de um terminal real.
+

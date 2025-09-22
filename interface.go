@@ -1,6 +1,4 @@
 // interface.go - Interface gráfica do jogo usando termbox
-// Implementa a interface gráfica do jogo com a biblioteca termbox-go.
-
 package main
 
 import (
@@ -13,10 +11,10 @@ type Cor = termbox.Attribute
 // Definições de cores utilizadas no jogo (apenas cores válidas em termbox)
 const (
 	CorPadrao   Cor = termbox.ColorDefault
-	CorCinza    Cor = termbox.ColorWhite    // substituto para "cinza"
+	CorCinza    Cor = termbox.ColorWhite
 	CorVermelho Cor = termbox.ColorRed
 	CorVerde    Cor = termbox.ColorGreen
-	CorParede   Cor = termbox.ColorBlue     // parede azul
+	CorParede   Cor = termbox.ColorBlue
 	CorFundo    Cor = termbox.ColorBlack
 	CorTexto    Cor = termbox.ColorYellow
 )
@@ -32,6 +30,7 @@ func interfaceIniciar() {
 	if err := termbox.Init(); err != nil {
 		panic(err)
 	}
+	termbox.HideCursor()
 }
 
 // Encerra o uso da interface termbox
@@ -45,13 +44,17 @@ func interfaceLerEventoTeclado() EventoTeclado {
 	if ev.Type != termbox.EventKey {
 		return EventoTeclado{}
 	}
+	// ESC
 	if ev.Key == termbox.KeyEsc {
 		return EventoTeclado{Tipo: "sair"}
 	}
+	// Enter / E
 	if ev.Ch == 'e' || ev.Ch == 'E' {
 		return EventoTeclado{Tipo: "interagir"}
 	}
-	if ev.Ch == 'w' || ev.Ch == 'a' || ev.Ch == 's' || ev.Ch == 'd' {
+	// WASD (maiúsculas e minúsculas)
+	switch ev.Ch {
+	case 'w', 'W', 'a', 'A', 's', 'S', 'd', 'D':
 		return EventoTeclado{Tipo: "mover", Tecla: ev.Ch}
 	}
 	return EventoTeclado{}
@@ -95,14 +98,16 @@ func interfaceDesenharElemento(x, y int, elem Elemento) {
 
 // Exibe uma barra de status com informações úteis ao jogador
 func interfaceDesenharBarraDeStatus(jogo *Jogo) {
-	// Linha de status dinâmica
+	// Linha de status dinâmica (logo abaixo do mapa)
+	statusY := len(jogo.Mapa) + 1
 	for i, c := range jogo.StatusMsg {
-		termbox.SetCell(i, len(jogo.Mapa)+1, c, CorTexto, CorPadrao)
+		termbox.SetCell(i, statusY, c, CorTexto, CorPadrao)
 	}
 
-	// Instruções fixas
+	// Instruções fixas algumas linhas abaixo
+	instrY := len(jogo.Mapa) + 3
 	msg := "Use WASD para mover, E para interagir, ESC para sair."
 	for i, c := range msg {
-		termbox.SetCell(i, len(jogo.Mapa)+3, c, CorTexto, CorPadrao)
+		termbox.SetCell(i, instrY, c, CorTexto, CorPadrao)
 	}
 }

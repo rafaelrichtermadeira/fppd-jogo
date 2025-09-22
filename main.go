@@ -1,14 +1,20 @@
-// main.go - Loop principal do jogo
 package main
 
-import "os"
+import (
+	"math/rand"
+	"os"
+	"time"
+)
 
 func main() {
-	// Inicializa a interface (termbox)
+	// seed aleatório
+	rand.Seed(time.Now().UnixNano())
+
+	// Inicializa a interface
 	interfaceIniciar()
 	defer interfaceFinalizar()
 
-	// Usa "mapa.txt" como arquivo padrão ou lê o primeiro argumento
+	// Arquivo do mapa
 	mapaFile := "mapa.txt"
 	if len(os.Args) > 1 {
 		mapaFile = os.Args[1]
@@ -20,15 +26,50 @@ func main() {
 		panic(err)
 	}
 
-	// Desenha o estado inicial do jogo
+	// canais
+	victoryCh = make(chan bool)
+	acoes := make(chan func(*Jogo), 50) // buffer para reduzir chance de bloqueio
+
+	// Goroutine que consome ações e aplica no estado (exclusão mútua via canal)
+	go func() {
+		for f := range acoes {
+			if f != nil {
+				f(&jogo)
+			}
+			interfaceDesenharJogo(&jogo)
+		}
+	}()
+
+	// Goroutine que aguarda vitória
+	go func() {
+		<-victoryCh
+		// finalize e saia
+		interfaceFinalizar()
+		println("🎉 Parabéns, você pegou o tesouro! (vitória)")
+		os.Exit(0)
+	}()
+
+	// Inicia elementos concorrentes
+	iniciarInimigo(10, 5, acoes)
+	iniciarTesouro(acoes)
+	iniciarPortais(15, 8, 2, 12, acoes) // entrada em (15,8), saída em (2,12)
+
+	// Desenha estado inicial
 	interfaceDesenharJogo(&jogo)
 
-	// Loop principal de entrada
+	// Loop principal de entrada: pega eventos e os transforma em ações via canal
 	for {
-		evento := interfaceLerEventoTeclado()
-		if continuar := personagemExecutarAcao(evento, &jogo); !continuar {
-			break
+		ev := interfaceLerEventoTeclado()
+		if ev.Tipo == "sair" {
+			// finaliza imediatamente
+			interfaceFinalizar()
+			os.Exit(0)
 		}
-		interfaceDesenharJogo(&jogo)
+		cont := personagemProcessarEvento(ev, acoes)
+		if !cont {
+			interfaceFinalizar()
+			os.Exit(0)
+		}
+		// não desenhamos aqui — a goroutine que aplica ações já redesenha
 	}
 }
